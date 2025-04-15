@@ -14,6 +14,17 @@
   let input = $state(""); // User input
   let loading = $state(false); // Loading state
   let chat; // Store chat instance
+  let messagesContainer; // Reference to the messages div
+
+  // Add this scroll function
+  function scrollToBottom() {
+    if (messagesContainer) {
+      messagesContainer.scrollTo({
+        top: messagesContainer.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  }
 
   // Message sending function
   async function sendMessage() {
@@ -23,6 +34,7 @@
     const userMessage = input;
     messages = [...messages, { role: "user", text: userMessage }];
     input = ""; // Clear input early for better UX
+    scrollToBottom(); // Scroll after user message
 
     try {
       if (!chat) {
@@ -33,6 +45,7 @@
 
       // Add an initial empty message for streaming
       messages = [...messages, { role: "model", text: "" }];
+      //   scrollToBottom(); // Scroll after adding empty model message
 
       const stream = await chat.sendMessageStream({
         message: userMessage,
@@ -48,6 +61,7 @@
         messages = messages.map((msg, index) =>
           index === messages.length - 1 ? { ...msg, text: fullResponse } : msg
         );
+        scrollToBottom(); // Scroll after each chunk
       }
     } catch (error) {
       console.error("Error:", error);
@@ -55,29 +69,28 @@
         ...messages,
         { role: "error", text: `Failed to get response: ${error.message}` },
       ];
+      scrollToBottom(); // Scroll after error message
     } finally {
       loading = false;
     }
   }
 </script>
 
-<div class=" max-w-2xl p-4 marker-1 h-screen">
-  <div
-    class="bg-white rounded-lg relative
-              before:absolute before:-inset-1 before:blur-xl before:bg-gradient-to-r
-              before:from-teal-300 before:to-blue-300 before:opacity-50 before:-z-10
-              ring-4 ring-teal-100/30"
-  >
+<div class=" p-4">
+  <div class=" rounded-lg relative">
     <!-- Messages area -->
-    <div class="h-[650px] overflow-y-auto p-4 space-y-4">
+    <div
+      class="h-[650px] scroller overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-teal-600 scrollbar-track-teal-950/50"
+      bind:this={messagesContainer}
+    >
       {#each messages as msg}
         <div
           class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}"
         >
           <div
             class="max-w-[70%] rounded-lg p-3 {msg.role === 'user'
-              ? 'bg-teal-500 text-white'
-              : 'bg-gray-100 text-gray-800'}"
+              ? 'bg-teal-700 text-gray-200'
+              : 'text-gray-200'}"
           >
             <p>{msg.text}</p>
           </div>
@@ -86,7 +99,7 @@
 
       {#if loading}
         <div class="flex justify-start">
-          <div class="bg-gray-100 rounded-lg p-3">
+          <div class=" rounded-lg p-3">
             <p class="animate-pulse">Thinking...</p>
           </div>
         </div>
@@ -94,7 +107,9 @@
     </div>
 
     <!-- Input area -->
-    <div class="border-t p-4 flex gap-2">
+    <div
+      class="p-4 flex flex-col gap-2 bg-teal-700/30 rounded-xl min-h-[100px] shadow-lg mt-2"
+    >
       <input
         type="text"
         bind:value={input}
@@ -103,13 +118,18 @@
         class="flex-1 p-2 rounded-lg focus:outline-none"
         disabled={loading}
       />
-      <Button
-        onclick={sendMessage}
-        disabled={loading}
-        class="px-4 py-4 bg-teal-700 text-white rounded-lg disabled:opacity-50 hover:bg-teal-600 transition-colors"
-      >
-        Send
-      </Button>
+      <div class="flex justify-end">
+        <Button
+          onclick={sendMessage}
+          disabled={loading}
+          class="px-4 py-4 bg-teal-700 text-white rounded-lg disabled:opacity-50 hover:bg-teal-600 transition-colors"
+        >
+          Ask
+        </Button>
+      </div>
     </div>
   </div>
 </div>
+
+<style lang="css">
+</style>

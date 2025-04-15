@@ -66,6 +66,18 @@
 @layer base {
  
   body {
-    @apply bg-teal-800;
+    @apply bg-teal-950 text-white;
   }
+  .scroller {
+    scrollbar-color: #0D9488 #042F2E;
+  }
+}
+
+@layer utilities {
+    .marker-1 {
+        @apply border-4 border-pink-500;
+     }
+
+     
+    
 }
