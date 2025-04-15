@@ -1,3 +1,29 @@
 /* @import 'tailwindcss'; */
 @import "tailwindcss";
 
+@layer base {
+    
+    h1 {
+      font-size: var(--text-2xl);
+    }
+    h2 {
+      font-size: var(--text-xl);
+    }
+    h3 {
+      font-size: var(--text-lg);
+    }
+    a {
+      color: var(--color-blue-600);
+      text-decoration-line: underline;
+    }
+  }
+
+@layer utilities {
+    body {
+        @apply bg-slate-900;
+    }
+    .marker-1 {
+        /* border color teal with size 4 */
+        @apply border-2 border-teal-500;
+    }
+}
