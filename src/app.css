@@ -1,0 +1,14 @@
+@import 'tailwindcss';
+
+@import 'tailwindcss/base'; /* Preflight will be injected here */
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+
+@layer base {
+    .marker-1 {
+        /* border color teal with size 4 */
+        @apply border-2 border-teal-500;
+    }
+}
+
