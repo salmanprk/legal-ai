@@ -1,5 +1,6 @@
 <script>
   import { PUBLIC_GEMINI_API_KEY } from "$env/static/public";
+  import Button from "$lib/components/ui/button/button.svelte";
 
   import { GoogleGenAI } from "@google/genai";
 
@@ -99,16 +100,16 @@
         bind:value={input}
         onkeydown={(e) => e.key === "Enter" && !loading && sendMessage()}
         placeholder="Type your message..."
-        class="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
+        class="flex-1 p-2 rounded-lg focus:outline-none"
         disabled={loading}
       />
-      <button
+      <Button
         onclick={sendMessage}
         disabled={loading}
-        class="px-4 py-2 bg-teal-500 text-white rounded-lg disabled:opacity-50 hover:bg-teal-600 transition-colors"
+        class="px-4 py-4 bg-teal-700 text-white rounded-lg disabled:opacity-50 hover:bg-teal-600 transition-colors"
       >
         Send
-      </button>
+      </Button>
     </div>
   </div>
 </div>
