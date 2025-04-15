@@ -19,7 +19,9 @@
     if (!input.trim()) return;
 
     loading = true;
-    messages = [...messages, { role: "user", text: input }];
+    const userMessage = input;
+    messages = [...messages, { role: "user", text: userMessage }];
+    input = ""; // Clear input early for better UX
 
     try {
       if (!chat) {
@@ -28,20 +30,32 @@
         });
       }
 
-      const response = await chat.sendMessageStream({
-        message: input,
+      // Add an initial empty message for streaming
+      messages = [...messages, { role: "model", text: "" }];
+
+      const stream = await chat.sendMessageStream({
+        message: userMessage,
       });
 
-      messages = [...messages, { role: "model", text: response.text }];
+      let fullResponse = "";
+
+      // Handle streaming chunks
+      for await (const chunk of stream) {
+        console.log("Chunk received:", chunk.text);
+        fullResponse += chunk.text;
+        // Update the last message in real-time
+        messages = messages.map((msg, index) =>
+          index === messages.length - 1 ? { ...msg, text: fullResponse } : msg
+        );
+      }
     } catch (error) {
       console.error("Error:", error);
       messages = [
         ...messages,
-        { role: "error", text: "Failed to get response" },
+        { role: "error", text: `Failed to get response: ${error.message}` },
       ];
     } finally {
       loading = false;
-      input = "";
     }
   }
 </script>
