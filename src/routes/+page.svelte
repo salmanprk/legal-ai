@@ -330,8 +330,21 @@
           <p
             class="text-black markdown prose prose-invert prose-teal max-w-none"
           >
-            {@html renderMarkdown(temp)}
+            <!-- {@html renderMarkdown(temp)} -->
           </p>
+          <div class="prose prose-invert prose-teal max-w-none">
+            <h1>Big Heading</h1>
+            <h2>Smaller Heading</h2>
+            <p>
+              This is a paragraph with <strong>bold</strong> and <em>italic</em>
+              text.
+            </p>
+            <ul>
+              <li>List item 1</li>
+              <li>List item 2</li>
+            </ul>
+            <blockquote>This is a quote</blockquote>
+          </div>
           <!-- 
           <Markdown {carta} value={temp} /> -->
         </div>

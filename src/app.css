@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @layer base {
   :root {
@@ -83,95 +84,107 @@
      .marker-3 {
         @apply border-4 border-orange-500;
      }
-     .markdown {
+
+
+     /* Markdown styles */
+     /* .markdown {
         @apply text-gray-200 ;
      }
 
      .markdown h1 {
-        @apply text-2xl font-bold;
+        @apply text-2xl font-bold mb-6 mt-8;
      }
 
      .markdown h2 {
-        @apply text-xl font-bold;
+        @apply text-xl font-bold mb-4 mt-6;
      }
 
      .markdown h3 {
-        @apply text-lg font-bold;
+        @apply text-lg font-bold mb-3 mt-4;
      }
 
      .markdown p {
-        @apply text-gray-200 text-base my-2;
+        @apply text-gray-200 text-sm leading-relaxed my-4;
      }
 
-     .markdown ul {
-        @apply list-disc list-inside my-1;
+     .markdown strong {
+        @apply text-gray-100 font-semibold;
      }
 
-     .markdown ol {
-        @apply list-decimal list-inside;
+     .markdown em {
+        @apply text-gray-300 italic;
+     }
+
+     .markdown ul, .markdown ol {
+        @apply my-4 space-y-3;
      }
 
      .markdown li {
-        @apply text-gray-200 text-base;
-     }
+        @apply text-gray-200 text-sm leading-relaxed;
+     } */
 
       /* Fix paragraphs inside list items */
-  .markdown li > p {
-    @apply my-0 inline; /* Remove margin and make inline */
-  }
+      /* Remove margin and make inline */
+    /* .markdown li > p {
+        @apply my-0 inline; 
+    } */
 
-  /* If you have multiple paragraphs in a list item */
-  .markdown li > p:not(:first-child) {
-    @apply mt-2 block; /* Only add spacing for subsequent paragraphs */
-  }
+    /* If you have multiple paragraphs in a list item */
+     /* Only add spacing for subsequent paragraphs */
+    /* .markdown li > p:not(:first-child) {
+        @apply mt-2 block;
+    } */
      
      /* Top-level lists */
-     .markdown > ul,
+     /* .markdown > ul,
      .markdown > ol {
        @apply list-disc list-inside my-6 space-y-2;
-     }
+     } */
 
      /* Top-level list items */
-     .markdown > ul > li,
+     /* .markdown > ul > li,
      .markdown > ol > li {
-       @apply text-gray-200 text-base font-normal;
-     }
+       @apply text-gray-200 text-sm font-normal;
+     } */
 
      /* Nested lists */
-     .markdown ul ul,
+     /* .markdown ul ul,
      .markdown ol ol,
      .markdown ul ol,
      .markdown ol ul {
-       @apply ml-6 my-2 space-y-2;
-     }
+       @apply mt-2 mb-3 ml-6 space-y-2;
+     } */
 
      /* Nested list items */
-     .markdown ul ul li,
+     /* .markdown ul ul li,
      .markdown ol ol li,
      .markdown ul ol li,
      .markdown ol ul li {
-       @apply text-gray-200 text-base font-normal;
-     }
+       @apply text-gray-200 text-sm font-normal;
+     } */
 
      /* Add bullets for nested lists */
-     .markdown ul ul {
+     /* .markdown ul ul {
         list-style-type: circle;
       }
     
       .markdown ul ul ul {
         list-style-type: square;
-      }
+      } */
+
+
+
     /* Table styles */
       .markdown table {
-        @apply w-full my-4 border-collapse;
+        @apply w-full my-6 border-collapse rounded-lg overflow-hidden text-sm;
       }
     
       .markdown th {
-        @apply bg-teal-900 text-gray-200 p-2 border border-teal-700 font-semibold;
+        @apply bg-teal-900/80 text-gray-100 p-3 font-semibold border-b-2 border-teal-600;
       }
     
       .markdown td {
-        @apply p-2 border border-teal-700 text-gray-200;
+        @apply p-3 border-b border-teal-800/30;
       }
     
       /* Zebra striping for better readability */
@@ -186,6 +199,34 @@
       /* Hover effect on table rows */
       .markdown tr:hover {
         @apply bg-teal-800/30;
+      }
+
+      .markdown code {
+        @apply bg-teal-900/40 px-1.5 py-0.5 rounded text-sm font-mono;
+      }
+
+      .markdown pre {
+        @apply bg-teal-900/40 p-4 rounded-lg my-4 overflow-x-auto;
+        @apply border border-teal-800/50;
+      }
+
+      .markdown pre code {
+        @apply bg-transparent p-0;
+      }
+
+      .markdown blockquote {
+        @apply border-l-4 border-teal-500 pl-4 py-1 my-4;
+        @apply bg-teal-900/20 rounded-r-lg pr-4;
+        @apply italic text-gray-300;
+      }
+
+      .markdown a {
+        @apply text-teal-400 underline decoration-teal-700/50 underline-offset-2;
+        @apply transition-colors duration-200;
+      }
+
+      .markdown a:hover {
+        @apply text-teal-300 decoration-teal-600;
       }
 }
 
