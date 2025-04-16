@@ -28,9 +28,9 @@
   );
 
   $effect(() => {
-    console.log("Uploaded files", files);
     if (files) {
-      uploadFile();
+      //   uploadFile();
+      console.log("Caught files", files);
     }
   });
 
@@ -62,13 +62,11 @@
   }
   // Message sending function
   async function sendMessage() {
-    if (!input.trim()) return;
+    if (!input.trim() && !files) return;
 
     loading = true;
     const userMessage = input;
-    messages = [...messages, { role: "user", text: userMessage }];
-    input = ""; // Clear input early for better UX
-    scrollToBottom(); // Scroll after user message
+    let displayMessage = userMessage;
 
     try {
       if (!chat) {
@@ -80,12 +78,33 @@
         });
       }
 
-      // Add an initial empty message for streaming
-      messages = [...messages, { role: "model", text: "" }];
-      //   scrollToBottom(); // Scroll after adding empty model message
+      let messageContent;
 
+      // If there's a file, use your existing functions
+      if (files) {
+        const uploadedFile = await uploadFile();
+        messageContent = await fullContent(
+          uploadedFile,
+          userMessage || "Please analyze this document"
+        );
+        // displayMessage += `[File: ${files[0].name}]`;
+      } else {
+        messageContent = createUserContent(userMessage);
+      }
+
+      // Add message to chat history
+      messages = [
+        ...messages,
+        { role: "user", text: displayMessage, files: files },
+      ];
+      input = "";
+      scrollToBottom();
+
+      // Add initial empty message for streaming
+      messages = [...messages, { role: "model", text: "" }];
+      console.log("Message content", messageContent);
       const stream = await chat.sendMessageStream({
-        message: userMessage,
+        message: messageContent,
       });
 
       let fullResponse = "";
@@ -94,19 +113,21 @@
       for await (const chunk of stream) {
         console.log("Chunk received:", chunk.text);
         fullResponse += chunk.text;
-        // Update the last message in real-time
         messages = messages.map((msg, index) =>
           index === messages.length - 1 ? { ...msg, text: fullResponse } : msg
         );
-        scrollToBottom(); // Scroll after each chunk
+        scrollToBottom();
       }
+
+      // Clear the file after sending
+      files = null;
     } catch (error) {
       console.error("Error:", error);
       messages = [
         ...messages,
         { role: "error", text: `Failed to get response: ${error.message}` },
       ];
-      scrollToBottom(); // Scroll after error message
+      scrollToBottom();
     } finally {
       loading = false;
     }
