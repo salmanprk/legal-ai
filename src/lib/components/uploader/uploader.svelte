@@ -54,7 +54,7 @@
 </Button>
 
 <!-- Add this above the buttons if you want to show selected file -->
-{#if selectedFileName}
+<!-- {#if selectedFileName}
   <div class="text-sm text-gray-200 mb-2 flex items-center gap-2">
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -70,4 +70,4 @@
     </svg>
     {selectedFileName}
   </div>
-{/if}
+{/if} -->
