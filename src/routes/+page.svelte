@@ -8,6 +8,7 @@
     createUserContent,
     createPartFromUri,
   } from "@google/genai";
+  import { marked } from "marked";
 
   const ai = new GoogleGenAI({ apiKey: PUBLIC_GEMINI_API_KEY });
   let listOfFiles = $state([]);
@@ -26,6 +27,23 @@
   let responseFormat = $state(
     "You should respond in a concise and professional manner, providing clear and actionable advice. Your response should be in the following format: <response> <reasoning> <conclusion>"
   );
+
+  // Configure marked for security
+  marked.setOptions({
+    gfm: true, // GitHub Flavored Markdown
+    breaks: true, // Convert \n to <br>
+    sanitize: true, // Sanitize HTML tags
+  });
+
+  // Function to safely render markdown
+  function renderMarkdown(text) {
+    try {
+      return marked(text);
+    } catch (error) {
+      console.error("Markdown parsing error:", error);
+      return text;
+    }
+  }
 
   $effect(() => {
     if (files) {
@@ -160,11 +178,12 @@
             class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}"
           >
             <div
-              class="max-w-[70%] rounded-lg p-3 {msg.role === 'user'
+              class="max-w-[70%] markdown rounded-lg p-3 {msg.role === 'user'
                 ? 'bg-teal-700 text-gray-200'
                 : 'text-gray-200'}"
             >
-              <p>{msg.text}</p>
+              <!-- Use {@html} to render the markdown -->
+              {renderMarkdown(msg.text)}
             </div>
           </div>
         {/each}
@@ -232,5 +251,73 @@
 
 <!-- </div> -->
 
-<style lang="css">
+<style>
+  /* Add styles for markdown elements */
+  :global(.markdown) {
+    color: rgb(229, 231, 235); /* text-gray-200 */
+  }
+
+  :global(.markdown h1) {
+    font-size: 1.5rem; /* text-2xl */
+    font-weight: 700; /* font-bold */
+    margin-bottom: 1rem; /* mb-4 */
+  }
+
+  :global(.markdown h2) {
+    font-size: 1.25rem; /* text-xl */
+    font-weight: 700;
+    margin-bottom: 0.75rem; /* mb-3 */
+  }
+
+  :global(.markdown h3) {
+    font-size: 1.125rem; /* text-lg */
+    font-weight: 700;
+    margin-bottom: 0.5rem; /* mb-2 */
+  }
+
+  :global(.markdown p) {
+    margin-bottom: 1rem;
+  }
+
+  :global(.markdown ul) {
+    list-style-type: disc;
+    list-style-position: inside;
+    margin-bottom: 1rem;
+  }
+
+  :global(.markdown ol) {
+    list-style-type: decimal;
+    list-style-position: inside;
+    margin-bottom: 1rem;
+  }
+
+  :global(.markdown code) {
+    background-color: rgba(17, 94, 89, 0.5); /* bg-teal-800/50 */
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+  }
+
+  :global(.markdown pre) {
+    background-color: rgba(17, 94, 89, 0.5);
+    padding: 1rem;
+    border-radius: 0.25rem;
+    margin-bottom: 1rem;
+    overflow-x: auto;
+  }
+
+  :global(.markdown blockquote) {
+    border-left: 4px solid rgb(20, 184, 166); /* border-teal-500 */
+    padding-left: 1rem;
+    font-style: italic;
+    margin-bottom: 1rem;
+  }
+
+  :global(.markdown a) {
+    color: rgb(45, 212, 191); /* text-teal-400 */
+    text-decoration: underline;
+  }
+
+  :global(.markdown a:hover) {
+    color: rgb(94, 234, 212); /* text-teal-300 */
+  }
 </style>
