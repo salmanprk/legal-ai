@@ -2,6 +2,7 @@
   import { PUBLIC_GEMINI_API_KEY } from "$env/static/public";
   import Button from "$lib/components/ui/button/button.svelte";
   import Uploader from "$lib/components/uploader/uploader.svelte";
+  import { onMount } from "svelte";
   import {
     GoogleGenAI,
     createUserContent,
@@ -9,7 +10,7 @@
   } from "@google/genai";
 
   const ai = new GoogleGenAI({ apiKey: PUBLIC_GEMINI_API_KEY });
-
+  let listOfFiles = $state([]);
   let answer = $state("Hello World");
   let count = $state("");
   let files = $state(null);
@@ -28,6 +29,9 @@
 
   $effect(() => {
     console.log("Uploaded files", files);
+    if (files) {
+      uploadFile();
+    }
   });
 
   // Add this scroll function
@@ -39,7 +43,23 @@
       });
     }
   }
+  async function uploadFile() {
+    console.log("Uploading to Google", files);
+    const uploadedFile = await ai.files.upload({
+      file: files[0],
+      config: { mimeType: files[0].type },
+    });
+    console.log("???", uploadedFile);
+    return uploadedFile;
+  }
 
+  async function fullContent(uploadedFile, userMessage) {
+    const content = createUserContent([
+      createPartFromUri(uploadedFile.uri, uploadedFile.mimeType),
+      userMessage,
+    ]);
+    return content;
+  }
   // Message sending function
   async function sendMessage() {
     if (!input.trim()) return;
@@ -91,44 +111,69 @@
       loading = false;
     }
   }
+
+  onMount(async () => {
+    let listResponses = [];
+    listResponses = await ai.files.list({ config: { pageSize: 10 } });
+    for await (const file of listResponses) {
+      console.log("File", file);
+      listOfFiles.push(file);
+    }
+    // listResponses.forEach((file) => {
+    //   listOfFiles.push(file);
+    // });
+  });
 </script>
 
 <!-- <div class=""> -->
 <div class="grid grid-flow-col grid-rows-5 rounded-lg h-screen p-16">
   <!-- Messages area -->
-  <div
-    class="row-span-4 scroller overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-teal-600 scrollbar-track-teal-950/50"
-    bind:this={messagesContainer}
-  >
-    {#if messages.length > 0}
-      {#each messages as msg}
-        <div
-          class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}"
-        >
+  <div class="row-span-4 grid grid-cols-12 p-4">
+    <div
+      class="col-span-9 scroller overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-teal-600 scrollbar-track-teal-950/50"
+      bind:this={messagesContainer}
+    >
+      {#if messages.length > 0}
+        {#each messages as msg}
           <div
-            class="max-w-[70%] rounded-lg p-3 {msg.role === 'user'
-              ? 'bg-teal-700 text-gray-200'
-              : 'text-gray-200'}"
+            class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}"
           >
-            <p>{msg.text}</p>
+            <div
+              class="max-w-[70%] rounded-lg p-3 {msg.role === 'user'
+                ? 'bg-teal-700 text-gray-200'
+                : 'text-gray-200'}"
+            >
+              <p>{msg.text}</p>
+            </div>
           </div>
-        </div>
-      {/each}
+        {/each}
 
-      {#if loading}
-        <div class="flex justify-start">
-          <div class=" rounded-lg p-3">
-            <p class="animate-pulse">Thinking...</p>
+        {#if loading}
+          <div class="flex justify-start">
+            <div class=" rounded-lg p-3">
+              <p class="animate-pulse">Thinking...</p>
+            </div>
           </div>
+        {/if}
+      {:else}
+        <div class="flex justify-center items-center h-full">
+          <p class="text-gray-400 text-3xl font-semibold">
+            Tell me how I can help you today?
+          </p>
         </div>
       {/if}
-    {:else}
-      <div class="flex justify-center items-center h-full">
-        <p class="text-gray-400 text-3xl font-semibold">
-          Tell me how I can help you today?
-        </p>
-      </div>
-    {/if}
+    </div>
+    <div class="col-span-3 bg-teal-700/30 rounded-xl shadow-lg p-16">
+      {#if listOfFiles}
+        {#each listOfFiles as file, index}
+          <p class="text-white">{index + 1}. {file.name}</p>
+        {/each}
+      {:else}
+        <p>No files uploaded</p>
+      {/if}
+
+      <!-- {listOfFiles} -->
+    </div>
   </div>
 
   <!-- Input area -->
