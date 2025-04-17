@@ -1,7 +1,8 @@
-import { fontFamily } from "tailwindcss/defaultTheme";
+// import { fontFamily } from "tailwindcss/defaultTheme";
 import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
 import typography from '@tailwindcss/typography'; // Add this import
+import defaultTheme from "tailwindcss/defaultTheme";
 
 
 const config: Config = {
@@ -69,7 +70,7 @@ const config: Config = {
 				sm: "calc(var(--radius) - 4px)"
 			},
 			fontFamily: {
-				sans: [...fontFamily.sans]
+				sans: ['IBM Plex Sans', ...defaultTheme.fontFamily.sans],
 			},
 			keyframes: {
 				"accordion-down": {
@@ -90,6 +91,7 @@ const config: Config = {
         		"accordion-up": "accordion-up 0.2s ease-out",
        			"caret-blink": "caret-blink 1.25s ease-out infinite",
       		},
+			
 		},
 	},
 	plugins: [tailwindcssAnimate, typography],
