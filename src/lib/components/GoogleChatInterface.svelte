@@ -1,7 +1,10 @@
 <script>
+  import FilesViewer from "./FilesViewer.svelte";
+
   //   import { Icon, ArrowUp, ArrowTurnDownLeft } from "svelte-hero-icons";
   import {
     CornerDownLeft,
+    Command,
     Paperclip,
     MessageCircleQuestion,
   } from "@lucide/svelte";
@@ -30,28 +33,43 @@
   let llmState = $state("Thinking...");
   const ai = new GoogleGenAI({ apiKey: PUBLIC_GEMINI_API_KEY });
   let listOfFiles = $state([]);
-  let files = $state(null);
+  let files = $state([]);
   // State Management
   let messages = $state([
     {
       role: "user",
-      text: "Here's a breakdown of Canadian immigration law, focusing on key aspects relevant to RCICs",
-      files: "OP",
+      text: "This?", //"Here's a breakdown of Canadian immigration law, focusing on key aspects relevant to RCICs",
+      files: [
+        {
+          name: "Resume - Software Engineer.pdf",
+          uri: "https://generativelanguage.googleapis.com/v1beta/files/bdpm4ato6onk",
+          mimeType: "application/pdf",
+        },
+        {
+          name: "Salman Alam (2004-2008) - Diplomatic Passport-compressed.pdf",
+          uri: "https://generativelanguage.googleapis.com/v1beta/files/g0nrwtcw9jy6",
+          mimeType: "application/pdf",
+        },
+      ],
+      model: "user",
     },
     {
       role: "model",
       text: immigrationLawText,
-      files: null,
+      files: [],
+      model: model,
     },
     {
       role: "user",
       text: "I've attached my study permit application. Can you check if anything is missing?",
-      files: "OP",
+      files: [],
+      model: "user",
     },
     {
       role: "model",
       text: "I've reviewed your study permit application and found a few items that need attention:\n\n✅ **Personal information** is complete\n✅ **Educational background** is well documented\n\n❌ **Missing:** Financial proof documents\n❌ **Incomplete:** Letter of acceptance (missing signature)\n\nI recommend attaching your bank statements from the last 6 months and requesting a properly signed letter from your educational institution.",
-      files: null,
+      files: [],
+      model: model,
     },
   ]); // Store chat history
   let input = $state(""); // User input
@@ -65,8 +83,9 @@
 
   $effect(() => {
     if (files) {
+      console.log("Selected files", files);
       //   uploadFile();
-      console.log("Caught files", files);
+      //   console.log("Added files?", files);
       showWelcomeScreen = false;
     }
   });
@@ -95,7 +114,7 @@
       });
     }
   }
-  // List all files
+  // List all files uploaded to Google
   async function listAllFiles() {
     let tempArray = [];
     let listResponses = await ai.files.list({ config: { pageSize: 10 } });
@@ -107,31 +126,54 @@
   }
   // Upload file
   async function uploadFile() {
-    console.log("Uploading to Google", files);
-    const uploadedFile = await ai.files.upload({
-      file: files[0],
-      config: { mimeType: files[0].type },
+    console.log("Uploading to Google Files API", files);
+
+    // Create an array of upload promises
+    const uploadPromises = Array.from(files).map(async (file) => {
+      console.log("Preparing to upload file", file.name);
+      try {
+        const uploadedFile = await ai.files.upload({
+          file: file,
+          config: { mimeType: file.type },
+        });
+        console.log("Uploaded file", uploadedFile);
+        return {
+          name: file.name,
+          uri: uploadedFile.uri,
+          mimeType: uploadedFile.mimeType,
+        };
+      } catch (error) {
+        console.error(`Error uploading file ${file.name}:`, error);
+        throw error; // Re-throw to be caught by Promise.all if needed
+      }
     });
-    console.log("???", uploadedFile);
-    return uploadedFile;
+
+    // Wait for all uploads to complete
+    const listOfUploadedFiles = await Promise.all(uploadPromises);
+    console.log("Result from Google Files API", listOfUploadedFiles);
+    return listOfUploadedFiles;
   }
   // Create full content if there is a file
   async function fullContent(uploadedFile, userMessage) {
-    const content = createUserContent([
-      createPartFromUri(uploadedFile.uri, uploadedFile.mimeType),
-      userMessage,
-    ]);
+    let parts = [];
+    uploadedFile.forEach((file) => {
+      parts.push(createPartFromUri(file.uri, file.mimeType));
+    });
+    parts.push(userMessage);
+    const content = createUserContent(parts);
     return content;
   }
   // Message sending function
   async function sendMessage(templatedPrompt = "") {
     const userText = templatedPrompt || input;
     if (!userText.trim() && !files) return;
-
+    let filesToInclude = files;
     showWelcomeScreen = false;
     loading = true;
     const userMessage = userText;
+    llmState = "Let me think...";
     let displayMessage = userMessage;
+    setTimeout(() => scrollToBottom(), 0);
 
     try {
       if (!chat) {
@@ -146,12 +188,16 @@
       let messageContent;
 
       // If there's a file, use your existing functions
-      if (files) {
+      if (filesToInclude.length > 0) {
+        llmState = "Uploading your documents...";
         const uploadedFile = await uploadFile();
+        files = [];
+        console.log("Uploaded file", uploadedFile);
         messageContent = await fullContent(
           uploadedFile,
           userMessage || "Please analyze this document"
         );
+        console.log("Message content", messageContent);
         // displayMessage += `[File: ${files[0].name}]`;
       } else {
         messageContent = createUserContent(userMessage);
@@ -160,7 +206,12 @@
       // Add message to chat history
       messages = [
         ...messages,
-        { role: "user", text: displayMessage, files: files },
+        {
+          role: "user",
+          text: displayMessage,
+          files: filesToInclude,
+          model: "user",
+        },
       ];
       input = "";
 
@@ -168,17 +219,23 @@
       setTimeout(() => scrollToBottom(), 0);
 
       // Add initial empty message for streaming
-      messages = [...messages, { role: "model", text: "", files: "" }];
+      messages = [
+        ...messages,
+        { role: "model", text: "", files: [], model: model },
+      ];
 
       // Scroll again after model placeholder is added
       setTimeout(() => scrollToBottom(), 0);
 
-      console.log("Message content", messageContent);
+      console.log("Sending message to Google Chat", messageContent);
+      if (filesToInclude.length > 0) {
+        llmState = "Reading your documents...";
+      }
       const stream = await chat.sendMessageStream({
         message: messageContent,
       });
       //   loading = false;
-      llmState = "Generating response...";
+      llmState = "Generating your response...";
       let fullResponse = "";
 
       //   Handle streaming chunks
@@ -196,7 +253,7 @@
       //   console.log("HTML", renderMarkdown(fullResponse));
 
       // Clear the file after sending
-      files = null;
+      files = [];
     } catch (error) {
       console.error("Error:", error);
 
@@ -209,7 +266,8 @@
         {
           role: "error",
           text: `Failed to get response: ${errorMessage}`,
-          files: null,
+          files: [],
+          model: model,
         },
       ];
       setTimeout(() => scrollToBottom(), 0);
@@ -240,48 +298,72 @@
   }
 
   onMount(async () => {
-    let listResponses = [];
-    listResponses = await listAllFiles();
-    console.log("List of files", listResponses);
+    // let listResponses = [];
+    // listResponses = await listAllFiles();
+    // console.log("List of files", listResponses);
   });
 </script>
 
-<div class=" bg-zinc-900 grid grid-flow-col grid-rows-12 h-screen mx-auto">
+{#snippet chatMessage(msg)}
+  <div
+    class="markdown prose prose-invert prose-teal rounded-xl px-4 py-2 {msg.role ===
+    'user'
+      ? 'bg-teal-900'
+      : ''}  text-gray-200"
+  >
+    {@html renderMarkdown(msg.text)}
+  </div>
+{/snippet}
+
+<div class=" bg-zinc-900 flex flex-col h-screen mx-auto">
   <!-- Messages area -->
   {#if messages.length > 0}
     <section
       bind:this={messagesContainer}
-      class="row-span-9 grid grid-cols-12 scroller overflow-y-auto"
+      class=" grid grid-cols-12 scroller overflow-y-auto"
     >
       <div class="py-8 px-4 md:px-16 lg:px-[15%] col-span-12">
         <div class="flex flex-col gap-8">
           {#each messages as msg}
             <div
-              class="flex {msg.role === 'user'
+              class=" flex {msg.role === 'user'
                 ? 'justify-end'
                 : 'justify-start'}"
             >
-              <div class="flex flex-col gap-2">
-                <div
-                  class=" markdown prose prose-invert prose-teal max-w-none rounded-xl px-4 py-2 {msg.role ===
-                  'model'
-                    ? 'hover:ring-2 hover:ring-teal-900 duration-100'
-                    : ''} {msg.role === 'user'
-                    ? 'bg-teal-900 text-gray-200 max-w-[70%]'
-                    : 'text-gray-200 '}"
-                >
-                  {@html renderMarkdown(msg.text)}
+              {#if msg.role === "user"}
+                <div class="flex flex-col gap-2 items-end">
+                  {@render chatMessage(msg)}
+
+                  <div class="flex flex-col gap-1 justify-end pr-4">
+                    {#if msg.files && msg.files.length > 0}
+                      {#each msg.files as file}
+                        <p
+                          class="hover:underline underline-offset-2 flex items-center justify-end gap-1 text-gray-200 text-xs"
+                        >
+                          <Paperclip class="text-teal-600" size={16} />
+                          {file?.name.slice(0, 40) + "..."}
+                        </p>
+                      {/each}
+                    {/if}
+                  </div>
                 </div>
-                <div class="flex flex-row justify-end gap-2 pr-4">
-                  {#if msg.files}
-                    <p
-                      class="hover:underline underline-offset-2 flex items-center gap-1 text-gray-200 text-sm"
+              {/if}
+
+              {#if msg.role === "model"}
+                <div class="flex flex-col gap-2 items-start">
+                  {@render chatMessage(msg)}
+
+                  {#if msg.text.length > 0}
+                    <div
+                      class="text-gray-200 text-xs bg-blue-800 rounded-full px-2 py-1 w-fit z-10"
                     >
-                      <Paperclip class="text-teal-600" size={16} /> Attachment
-                    </p>
+                      <p>
+                        {msg.model.charAt(0).toUpperCase() + msg.model.slice(1)}
+                      </p>
+                    </div>
                   {/if}
                 </div>
-              </div>
+              {/if}
             </div>
           {/each}
         </div>
@@ -306,17 +388,14 @@
 
     <!-- Input area -->
     <section
-      class="row-span-3 px-4 lg:px-32 flex flex-col text-white min-w-full lg:min-w-[80%] mx-auto pb-8 gap-2"
+      class="grow row-span-3 px-4 lg:px-32 flex flex-col text-white min-w-full lg:min-w-[80%] lg:max-w-[85%] mx-auto pb-8 gap-2"
     >
-      <div class="flex justify-between">
-        {#if files}
-          <p>{files[0].name}</p>
-        {:else}{/if}
-      </div>
+      <FilesViewer bind:files></FilesViewer>
       <div class="p-4 bg-teal-950 shadow rounded-2xl">
         <Textarea
           bind:value={input}
-          onkeydown={(e) => e.key === "Enter" && !loading && sendMessage()}
+          onkeydown={(e) =>
+            e.key === "Enter" && e.shiftKey && !loading && sendMessage()}
           placeholder="Ask me anything..."
           class="bg-teal-950 text-gray-200 scroller-2 flex-1 min-h-[80px] leading-relaxed focus:outline-none border-none focus:border-0 focus:ring-0 focus:ring-offset-0 ring-0 outline-none placeholder:text-gray-300"
           disabled={loading}
@@ -324,10 +403,13 @@
       </div>
 
       <div class="flex justify-end gap-2">
-        <Button onclick={() => sendMessage()} disabled={loading} class="btn"
-          >Ask<CornerDownLeft strokeWidth={2.5} />
+        <Button
+          onclick={() => sendMessage()}
+          disabled={input.length === 0 || loading}
+          class="btn"
+          >Ask<Command /><CornerDownLeft strokeWidth={2.5} />
         </Button>
-        <Uploader bind:file={files} />
+        <Uploader bind:files />
       </div>
     </section>
 
