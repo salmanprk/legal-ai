@@ -26,7 +26,3 @@
   <Hero9 />
   <Hero10 /> -->
 </div>
-
-<div class="h-screen w-full bg-teal-950">
-  <GoogleChatInterface />
-</div>

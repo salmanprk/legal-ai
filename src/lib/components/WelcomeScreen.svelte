@@ -93,7 +93,7 @@
   <!-- Hero Section -->
   <div class="text-center mb-16">
     <h1
-      class="text-4xl font-extrabold tracking-tight text-gray-800 dark:text-white sm:text-5xl font-ibm-plex-serif mb-6"
+      class="text-4xl font-bold tracking-tight text-gray-800 dark:text-white sm:text-5xl font-newsreader mb-6"
     >
       Immigration Case Analysis <span class="text-teal-600 dark:text-teal-500"
         >Assistant</span
@@ -288,26 +288,30 @@
   <div>
     <section class="flex gap-2 my-4">
       <div
-        class="flex w-fit items-center justify-center space-x-3 rounded-full p-4 bg-gray-700/50"
+        class="flex w-fit items-center justify-center space-x-3 rounded-full p-4 bg-teal-700/50"
       >
         <div class="flex space-x-2 gap-1 items-center">
           <div
-            class="w-3 h-3 rounded-full bg-orange-400 animate-ping"
+            class="w-3 h-3 rounded-full bg-teal-500 animate-ping"
             style="animation-duration: 1.2s; animation-delay: 0s;"
           ></div>
           <div
-            class="w-3 h-3 rounded-full bg-orange-300 animate-ping"
+            class="w-3 h-3 rounded-full bg-teal-400 animate-ping"
             style="animation-duration: 1.2s; animation-delay: 0.2s;"
           ></div>
           <div
-            class="w-3 h-3 rounded-full bg-orange-200 animate-ping"
+            class="w-3 h-3 rounded-full bg-teal-300 animate-ping"
             style="animation-duration: 1.2s; animation-delay: 0.4s;"
           ></div>
-          <span
-            class="text-white font-medium animate-pulse"
+          <div
+            class="w-3 h-3 rounded-full bg-teal-200 animate-ping"
             style="animation-duration: 1.2s; animation-delay: 0.6s;"
-            >Thinking</span
-          >
+          ></div>
+          <div
+            class="w-3 h-3 rounded-full bg-teal-100 animate-ping"
+            style="animation-duration: 1.2s; animation-delay: 0.8s;"
+          ></div>
+          <span class="text-white font-medium animate-pulse">Thinking</span>
         </div>
       </div>
     </section>

@@ -230,9 +230,11 @@
       <div class="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
         <div class="text-center lg:text-left">
           <h1
-            class="text-4xl font-extrabold tracking-tight text-gray-800 sm:text-5xl lg:text-6xl font-ibm-plex-serif"
+            class="text-4xl font-extrabold tracking-tight text-gray-800 sm:text-5xl lg:text-6xl font-newsreader"
           >
-            <span class="block">Unlock Judicial Review Insights.</span>
+            <span class="block text-orange-700"
+              >Unlock Judicial Review Insights.</span
+            >
             <span class=" text-teal-800 mt-1 sm:mt-2">
               Instantly Analyze TRV Refusals.
             </span>

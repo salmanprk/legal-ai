@@ -8,7 +8,7 @@
 
   import { PUBLIC_GEMINI_API_KEY } from "$env/static/public";
   import Button from "$lib/components/ui/button/button.svelte";
-  import Uploader from "$lib/components/uploader/uploader.svelte";
+  import Uploader from "$lib/components/custom/uploader.svelte";
   import WelcomeScreen from "$lib/components/WelcomeScreen.svelte";
   import { onMount } from "svelte";
   import {
@@ -21,11 +21,13 @@
   import systemInstructionsText from "$lib/prompts/system-instructions.md?raw";
   import responseFormatText from "$lib/prompts/response-format.md?raw";
   import immigrationLawText from "$lib/prompts/immigration-law-breakdown.md?raw";
+  import AnimatedLoader from "./custom/animatedLoader.svelte";
 
   let value = $state("");
 
-  let model = $state("gemini-2.5-pro-preview-03-25"); //$state("gemini-2.0-flash");
-  let llmState = $state("Thinking deeply...");
+  let model = $state("gemini-2.5-pro-preview-03-25");
+  //   let model = $state("gemini-2.0-flash");
+  let llmState = $state("Thinking...");
   const ai = new GoogleGenAI({ apiKey: PUBLIC_GEMINI_API_KEY });
   let listOfFiles = $state([]);
   let files = $state(null);
@@ -39,6 +41,16 @@
     {
       role: "model",
       text: immigrationLawText,
+      files: null,
+    },
+    {
+      role: "user",
+      text: "I've attached my study permit application. Can you check if anything is missing?",
+      files: "OP",
+    },
+    {
+      role: "model",
+      text: "I've reviewed your study permit application and found a few items that need attention:\n\n✅ **Personal information** is complete\n✅ **Educational background** is well documented\n\n❌ **Missing:** Financial proof documents\n❌ **Incomplete:** Letter of acceptance (missing signature)\n\nI recommend attaching your bank statements from the last 6 months and requesting a properly signed letter from your educational institution.",
       files: null,
     },
   ]); // Store chat history
@@ -236,12 +248,12 @@
 
 <div class=" bg-zinc-900 grid grid-flow-col grid-rows-12 h-screen mx-auto">
   <!-- Messages area -->
-  <section
-    bind:this={messagesContainer}
-    class="row-span-9 grid grid-cols-12 scroller overflow-y-auto"
-  >
-    <div class="py-8 px-4 lg:px-32 col-span-12">
-      {#if messages.length > 0}
+  {#if messages.length > 0}
+    <section
+      bind:this={messagesContainer}
+      class="row-span-9 grid grid-cols-12 scroller overflow-y-auto"
+    >
+      <div class="py-8 px-4 md:px-16 lg:px-[15%] col-span-12">
         <div class="flex flex-col gap-8">
           {#each messages as msg}
             <div
@@ -275,42 +287,12 @@
         </div>
 
         {#if loading}
-          <div class="flex justify-start">
-            <div
-              class="flex w-fit items-center justify-center space-x-3 rounded-full p-4 bg-gray-700/50"
-            >
-              <div class="flex space-x-2 gap-1 items-center">
-                <div
-                  class="w-3 h-3 rounded-full bg-orange-400 animate-ping"
-                  style="animation-duration: 1.2s; animation-delay: 0s;"
-                ></div>
-                <div
-                  class="w-3 h-3 rounded-full bg-orange-300 animate-ping"
-                  style="animation-duration: 1.2s; animation-delay: 0.2s;"
-                ></div>
-                <div
-                  class="w-3 h-3 rounded-full bg-orange-200 animate-ping"
-                  style="animation-duration: 1.2s; animation-delay: 0.4s;"
-                ></div>
-                <span
-                  class="text-white font-medium animate-pulse"
-                  style="animation-duration: 1.2s; animation-delay: 0.6s;"
-                  >{llmState}</span
-                >
-              </div>
-            </div>
+          <div class="flex justify-center">
+            <AnimatedLoader text={llmState} />
           </div>
         {/if}
-        <!-- {:else if showWelcomeScreen} -->
-      {:else}
-        <WelcomeScreen
-          on:selectPrompt={handleSelectPrompt}
-          on:uploadDocuments={handleUploadDocuments}
-          on:startConversation={handleStartConversation}
-        />
-      {/if}
-    </div>
-    <!-- <div class="col-span-3 bg-teal-700/30 rounded-xl shadow-lg p-16">
+      </div>
+      <!-- <div class="col-span-3 bg-teal-700/30 rounded-xl shadow-lg p-16">
         {#if listOfFiles}
           {#each listOfFiles as file, index}
             <p class="text-white">{index + 1}. {file.name}</p>
@@ -320,39 +302,43 @@
         {/if}
   
       </div> -->
-  </section>
+    </section>
 
-  <!-- Input area -->
-  <section
-    class="row-span-3 px-4 lg:px-32 flex flex-col text-white min-w-full lg:min-w-[80%] mx-auto pb-8 gap-2"
-  >
-    <div class="flex justify-between">
-      <!-- Files: -->
-      {#if files}
-        <p>{files[0].name}</p>
-      {:else}
-        <!-- <p>No files uploaded</p> -->
-      {/if}
-    </div>
-    <div class="p-4 bg-teal-950 shadow rounded-2xl">
-      <Textarea
-        bind:value={input}
-        onkeydown={(e) => e.key === "Enter" && !loading && sendMessage()}
-        placeholder="Ask me anything..."
-        class="bg-teal-950 text-gray-200 scroller-2 flex-1 min-h-[80px] leading-relaxed focus:outline-none border-none focus:border-0 focus:ring-0 focus:ring-offset-0 ring-0 outline-none placeholder:text-gray-300"
-        disabled={loading}
-      />
-    </div>
+    <!-- Input area -->
+    <section
+      class="row-span-3 px-4 lg:px-32 flex flex-col text-white min-w-full lg:min-w-[80%] mx-auto pb-8 gap-2"
+    >
+      <div class="flex justify-between">
+        {#if files}
+          <p>{files[0].name}</p>
+        {:else}{/if}
+      </div>
+      <div class="p-4 bg-teal-950 shadow rounded-2xl">
+        <Textarea
+          bind:value={input}
+          onkeydown={(e) => e.key === "Enter" && !loading && sendMessage()}
+          placeholder="Ask me anything..."
+          class="bg-teal-950 text-gray-200 scroller-2 flex-1 min-h-[80px] leading-relaxed focus:outline-none border-none focus:border-0 focus:ring-0 focus:ring-offset-0 ring-0 outline-none placeholder:text-gray-300"
+          disabled={loading}
+        />
+      </div>
 
-    <div class="flex justify-end gap-2">
-      <Button onclick={() => sendMessage()} disabled={loading} class="btn"
-        >Ask<CornerDownLeft strokeWidth={2.5} />
-      </Button>
-      <Uploader bind:file={files} />
+      <div class="flex justify-end gap-2">
+        <Button onclick={() => sendMessage()} disabled={loading} class="btn"
+          >Ask<CornerDownLeft strokeWidth={2.5} />
+        </Button>
+        <Uploader bind:file={files} />
+      </div>
+    </section>
 
-      <!-- <Input type="file" class="file-input border-4  border-teal-700" /> -->
-    </div>
-  </section>
+    <!-- {:else if showWelcomeScreen} -->
+  {:else}
+    <WelcomeScreen
+      on:selectPrompt={handleSelectPrompt}
+      on:uploadDocuments={handleUploadDocuments}
+      on:startConversation={handleStartConversation}
+    />
+  {/if}
 </div>
 
 <!-- </div> -->
