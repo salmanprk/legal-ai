@@ -1,10 +1,11 @@
 <script>
-  import { Paperclip } from "@lucide/svelte";
+  import { File, Paperclip } from "@lucide/svelte";
   import * as Select from "$lib/components/ui/select/index.js";
   import { marked } from "marked";
   import AnimatedLoader from "./custom/animatedLoader.svelte";
   import { createUserContent, createPartFromUri } from "@google/genai";
-  import { fade, fly } from "svelte/transition";
+  import { fade } from "svelte/transition";
+  import PopHover from "./custom/popHover.svelte";
   const models = [
     { value: "gemini-2.5-flash-preview-04-17", label: "Gemini 2.5 Flash" },
     { value: "gemini-2.5-pro-preview-03-25", label: "Gemini 2.5 Pro" },
@@ -18,38 +19,34 @@
 
   // Props using the new runes syntax
   let {
-    modelId = "",
-    modelName = "",
     systemInstructions = "",
     responseFormat = "",
-    immigrationLawText = "",
+
     ai,
     sharedInput = "",
     sharedFiles = [],
     uploadedFiles = [],
     sendMessageTrigger = false,
-    // messageSent = () => {},
     loading = $bindable(false),
     llmState = "Let me think...",
-    modelState = $bindable([]),
-    index = 0,
+    modelState = $bindable({}),
   } = $props();
-  let currentModel = $state(modelId);
-  let previousModel = $state(modelId);
+  let currentModel = $state(modelState.id);
+  let previousModel = $state(modelState.id);
 
   // Local state using reactive runes
   let messages = $state([
     {
       role: "user",
-      text: "This?", //"Here's a breakdown of Canadian immigration law, focusing on key aspects relevant to RCICs",
+      text: "Please analyze these documents?", //"Here's a breakdown of Canadian immigration law, focusing on key aspects relevant to RCICs",
       files: [
         {
-          name: "Resume - Software Engineer.pdf",
+          name: "Resume - Software Engineer - 2025 - 2026 - 2027.pdf",
           uri: "https://generativelanguage.googleapis.com/v1beta/files/bdpm4ato6onk",
           mimeType: "application/pdf",
         },
         {
-          name: "Salman Alam (2004-2008) - Diplomatic Passport-compressed.pdf",
+          name: "Salman.pdf",
           uri: "https://generativelanguage.googleapis.com/v1beta/files/g0nrwtcw9jy6",
           mimeType: "application/pdf",
         },
@@ -62,29 +59,25 @@
     //   files: [],
     //   model: currentModel,
     // },
-    // {
-    //   role: "user",
-    //   text: "I've attached my study permit application. Can you check if anything is missing?",
-    //   files: [],
-    //   model: "user",
-    // },
-    // {
-    //   role: "model",
-    //   text: "I've reviewed your study permit application and found a few items that need attention:\n\n✅ **Personal information** is complete\n✅ **Educational background** is well documented\n\n❌ **Missing:** Financial proof documents\n❌ **Incomplete:** Letter of acceptance (missing signature)\n\nI recommend attaching your bank statements from the last 6 months and requesting a properly signed letter from your educational institution.",
-    //   files: [],
-    //   model: currentModel,
-    // },
+    {
+      role: "user",
+      text: "I've attached my study permit application. Can you check if anything is missing?",
+      files: [],
+      model: "user",
+    },
+    {
+      role: "model",
+      text: "I've reviewed your study permit application and found a few items that need attention:\n\n✅ **Personal information** is complete\n✅ **Educational background** is well documented\n\n❌ **Missing:** Financial proof documents\n❌ **Incomplete:** Letter of acceptance (missing signature)\n\nI recommend attaching your bank statements from the last 6 months and requesting a properly signed letter from your educational institution.",
+      files: [],
+      model: currentModel,
+    },
   ]);
   let chat = $state(null);
   let messagesContainer;
 
   // Watch for send message trigger with effect rune
   $effect(() => {
-    if (
-      sendMessageTrigger === true &&
-      sharedInput.trim() !== "" &&
-      sharedInput.trim().length > 0
-    ) {
+    if (sendMessageTrigger === true) {
       setTimeout(() => {
         console.log(
           "Triggered",
@@ -117,31 +110,6 @@
       });
     }
   }
-
-  // Upload files
-  // async function uploadFiles(filesToUpload) {
-  //   console.log(`Uploading files for ${currentModel}...`);
-
-  //   const uploadPromises = Array.from(filesToUpload).map(async (file) => {
-  //     try {
-  //       const uploadedFile = await ai.files.upload({
-  //         file: file,
-  //         config: { mimeType: file.type },
-  //       });
-  //       return {
-  //         name: file.name,
-  //         uri: uploadedFile.uri,
-  //         mimeType: uploadedFile.mimeType,
-  //       };
-  //     } catch (error) {
-  //       console.error(`Error uploading file ${file.name}:`, error);
-  //       throw error;
-  //     }
-  //   });
-
-  //   const uploadedFiles = await Promise.all(uploadPromises);
-  //   return uploadedFiles;
-  // }
 
   // Create content with files
   async function createContentWithFiles(uploadedFiles, text) {
@@ -180,9 +148,12 @@
   // Send message
   async function handleSendMessage(text, filesToProcess) {
     if (!text.trim() && filesToProcess.length === 0) return;
-
+    modelState.isRunning = true;
     loading = true;
     llmState = "Let me think...";
+    if (text === "") {
+      text = "Please analyze these documents";
+    }
     // let uploadedFiles = [];
 
     try {
@@ -266,7 +237,7 @@
     } finally {
       loading = false;
       llmState = "Let me think...";
-      modelState[index].isRunning = false;
+      modelState.isRunning = false;
     }
   }
 </script>
@@ -274,7 +245,7 @@
 <div
   class="flex flex-col w-full h-full border-0 border-teal-900/30 overflow-hidden scroller"
 >
-  <span class="text-white">{modelState[index].isRunning}</span>
+  <!-- <span class="text-white">{modelState.isRunning}</span> -->
   <div class="bg-teal-900/30 p-4">
     <!-- <h3 class="text-white font-medium">{modelName}</h3> -->
 
@@ -334,23 +305,46 @@
               : 'items-start'}"
           >
             <div
-              class="markdown prose prose-invert prose-teal rounded-xl px-4 py-2 {msg.role ===
+              class="w-fit markdown prose prose-invert prose-teal rounded-xl px-4 py-2 {msg.role ===
               'user'
                 ? 'bg-teal-900'
-                : ''} text-gray-200 max-w-[90%]"
+                : ''} text-gray-200"
             >
               {@html renderMarkdown(msg.text)}
             </div>
 
             {#if msg.role === "user" && msg.files && msg.files.length > 0}
-              <div class="flex flex-col gap-1 pr-4">
+              <div class="flex flex-col gap-2">
+                <p
+                  class="text-gray-200 text-sm text-right underline underline-offset-4"
+                >
+                  Documents
+                </p>
                 {#each msg.files as file}
-                  <p
+                  <PopHover text={file.name.slice(0, 75)}>
+                    <div
+                      class="text-white relative flex flex-row gap-2 items-center px-3 py-2 max-w-40 bg-teal-600 rounded-2xl"
+                    >
+                      <div class="flex flex-col gap-1 items-center">
+                        <File class="w-6 h-6 " />
+                        <p class="text-xs">
+                          {file.name.split(".")[1].toUpperCase()}
+                        </p>
+                      </div>
+                      <div class="flex flex-col text-left gap-1">
+                        <p class="text-xs overflow-hidden">
+                          {file.name.slice(0, 30)}
+                        </p>
+                      </div>
+                    </div>
+                  </PopHover>
+
+                  <!-- <p
                     class="hover:underline underline-offset-2 flex items-center gap-1 text-gray-200 text-xs"
                   >
                     <Paperclip class="text-teal-600" size={16} />
                     {file?.name.slice(0, 30) + "..."}
-                  </p>
+                  </p> -->
                 {/each}
               </div>
             {/if}

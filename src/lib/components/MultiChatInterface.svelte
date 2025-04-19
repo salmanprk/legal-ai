@@ -15,17 +15,23 @@
   import { PUBLIC_GEMINI_API_KEY } from "$env/static/public";
   const ai = new GoogleGenAI({ apiKey: PUBLIC_GEMINI_API_KEY });
   // Define active models
-  let activeModels = [
+  let activeModels = $state([
     {
       id: "gemini-2.5-flash-preview-04-17",
       name: "Gemini 2.5 Flash",
-      ref: null,
+      isRunning: false,
     },
-    { id: "gemini-2.5-pro-preview-03-25", name: "Gemini 2.5 Pro" },
-    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash" },
-    // { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro" },
-    // Add more models as needed
-  ];
+    {
+      id: "gemini-2.5-pro-preview-03-25",
+      name: "Gemini 2.5 Pro",
+      isRunning: false,
+    },
+    {
+      id: "gemini-2.0-flash",
+      name: "Gemini 2.0 Flash",
+      isRunning: false,
+    },
+  ]);
 
   // Shared state
   let input = $state("");
@@ -35,39 +41,27 @@
   let uploadedFiles = $state([]);
   let loading = $state(false);
   let llmState = $state("Thinking...");
-  let modelState = $state([
-    {
-      id: 1,
-      name: "Gemini 2.5 Flash",
-      isRunning: false,
-    },
-    {
-      id: 2,
-      name: "Gemini 2.5 Pro",
-      isRunning: false,
-    },
-    { id: 3, name: "Gemini 2.0 Flash", isRunning: false },
-  ]);
+  let isUploading = $state(false);
 
   // Add the uploadFiles function to MultiChatInterface
-  async function uploadFiles(filesToUpload) {
+  async function uploadToFilesAPI(docs) {
     console.log("Uploading files centrally...");
     // loading = true;
     llmState = "Uploading documents...";
-    const uploadPromises = Array.from(filesToUpload).map(async (file) => {
+    const uploadPromises = Array.from(docs).map(async (doc) => {
       try {
         // llmState = `Uploading ${file.name}...`;
         const uploadedFile = await ai.files.upload({
-          file: file,
-          config: { mimeType: file.type },
+          file: doc.file,
+          config: { mimeType: doc.file.type },
         });
         return {
-          name: file.name,
+          name: doc.file.name,
           uri: uploadedFile.uri,
           mimeType: uploadedFile.mimeType,
         };
       } catch (error) {
-        console.error(`Error uploading file ${file.name}:`, error);
+        console.error(`Error uploading file ${doc.file.name}:`, error);
         throw error;
       }
     });
@@ -76,7 +70,7 @@
   }
 
   let allModelsFinished = $derived(
-    modelState.every((model) => !model.isRunning)
+    activeModels.every((model) => !model.isRunning)
   );
   $effect(() => {
     // console.log("Model State", modelState);
@@ -85,21 +79,24 @@
 
   // Trigger message send to all components
   async function sendMessageToAll() {
-    if (!input.trim() && files.length === 0) return;
+    // if (!input.trim() && files.length === 0) return;
 
     // Upload files if needed
     if (files.length > 0) {
       try {
+        isUploading = true;
         loading = true;
         llmState = "Uploading documents...";
-        uploadedFiles = await uploadFiles(files);
+        uploadedFiles = await uploadToFilesAPI(files);
         console.log("Files uploaded centrally:", uploadedFiles);
       } catch (error) {
         console.error("Error uploading files:", error);
         loading = false;
+        isUploading = false;
         return; // Prevent proceeding if file upload fails
       } finally {
         loading = false;
+        isUploading = false;
       }
     } else {
       uploadedFiles = [];
@@ -108,9 +105,9 @@
 
     // Trigger the models to process message
     sendTrigger = true;
-    modelState.forEach((model) => {
-      model.isRunning = true;
-    });
+    // activeModels.forEach((model) => {
+    //   model.isRunning = true;
+    // });
 
     // Reset trigger on next tick to ensure components have time to read it
     setTimeout(() => {
@@ -118,7 +115,7 @@
       sendTrigger = false;
       input = "";
       files = [];
-    }, 1);
+    }, 10);
   }
 </script>
 
@@ -140,11 +137,8 @@
             <!-- <span class="font-semibold">Sidebar</span> -->
 
             <ModelChat
-              modelId={model.id}
-              modelName={model.name}
               {systemInstructions}
               {responseFormat}
-              {immigrationLawText}
               {ai}
               sharedInput={input}
               sharedFiles={files}
@@ -152,8 +146,7 @@
               sendMessageTrigger={sendTrigger}
               {loading}
               {llmState}
-              bind:modelState
-              {index}
+              bind:modelState={activeModels[index]}
             />
           </div>
         </Resizable.Pane>
@@ -168,48 +161,52 @@
   </section>
 
   <!-- Shared input section -->
-  <section class="p-4 lg:p-8 grow text-white min-w-full mx-auto gap-2">
-    <FilesViewer bind:files />
-    <div
-      class="grid grid-flow-col grid-cols-12 gap-4 justify-center items-center"
-    >
-      <div class="col-span-10">
-        <div class="p-4 bg-teal-950 shadow rounded-2xl">
-          <Textarea
-            onkeydown={(e) => {
-              if (e.key === "Enter" && e.metaKey) {
-                if (loading) {
-                  return;
-                } else {
-                  e.preventDefault();
-                  sendMessageToAll();
+  <section class=" p-4 lg:p-8 grow text-white min-w-full mx-auto gap-2">
+    <div class="bg-teal-950 p-4 rounded-2xl">
+      <FilesViewer {isUploading} bind:files />
+      <div class="grid lg:grid-cols-12 gap-4 items-center">
+        <div class="lg:col-span-9">
+          <div class="p-4 bg-teal-950 rounded-2xl">
+            <Textarea
+              onkeydown={(e) => {
+                if (e.key === "Enter" && e.metaKey) {
+                  if (loading || !allModelsFinished || !input.trim()) {
+                    return;
+                  } else {
+                    e.preventDefault();
+                    sendMessageToAll();
+                  }
                 }
+              }}
+              bind:value={input}
+              placeholder="Ask anything..."
+              class="bg-teal-950 text-gray-200 scroller-2 flex-1 min-h-[80px] leading-relaxed focus:ring-none border-none focus:border-none focus:border-0 focus:outline-none focus:ring-0 focus:ring-offset-0 ring-0 outline-none placeholder:text-gray-300"
+            />
+          </div>
+        </div>
+        <!-- <div class="flex w-full justify-end"> -->
+        <div
+          class=" w-full lg:col-span-3 flex lg:flex-col justify-end lg:justify-end lg:items-end gap-1"
+        >
+          <Button
+            onclick={() => {
+              if (!input.trim() && allModelsFinished) {
+                sendMessageToAll();
               }
             }}
-            bind:value={input}
-            placeholder="Ask ..."
-            class="bg-teal-950 text-gray-200 scroller-2 flex-1 min-h-[80px] leading-relaxed focus:ring-none border-none focus:border-none focus:border-0 focus:outline-none focus:ring-0 focus:ring-offset-0 ring-0 outline-none placeholder:text-gray-300"
-          />
+            disabled={(!input.trim() && files.length === 0) ||
+              sendTrigger ||
+              !allModelsFinished ||
+              isUploading}
+            class="btn w-fit"
+          >
+            Let's go <Command /><CornerDownLeft strokeWidth={2.5} />
+          </Button>
+          <Uploader bind:files />
         </div>
       </div>
-
-      <div class="col-span-2 flex flex-col justify-center gap-1">
-        <Button
-          onclick={() => {
-            if (input.trim() !== "" && input.length > 0) {
-              sendMessageToAll();
-            }
-          }}
-          disabled={(!input.trim() && files.length === 0) ||
-            sendTrigger ||
-            !allModelsFinished}
-          class="btn w-24"
-        >
-          Ask <Command /><CornerDownLeft strokeWidth={2.5} />
-        </Button>
-        <Uploader bind:files />
-      </div>
     </div>
+    <!-- </div> -->
   </section>
   <!-- {/if} -->
 </div>
