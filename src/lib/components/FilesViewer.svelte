@@ -13,9 +13,11 @@
   <p>No file hovered</p>
 {/if} -->
 
-<div class="flex justify-between py-2 rounded-xl">
+<div
+  class="flex justify-between {listOfFiles.length > 0 ? 'py-1' : ''} rounded-xl"
+>
   {#if listOfFiles.length > 0}
-    <div class="flex flex-wrap items-center gap-2 text-xs">
+    <div class=" flex flex-wrap items-center gap-2 text-xs">
       {#each listOfFiles as file}
         <div
           in:fade={{ duration: 150 }}
@@ -34,10 +36,10 @@
           </button>
           <div class="flex flex-col gap-1 items-center">
             <File class="w-6 h-6 " />
-            <p>{file.type.split("/")[1].toUpperCase()}</p>
+            <p>{file.name.split(".")[1].toUpperCase()}</p>
           </div>
           <div class="flex flex-wrap">
-            <p>{file.name.slice(0, 30)}...</p>
+            <p>{file.name.slice(0, 20)}...</p>
           </div>
         </div>
 

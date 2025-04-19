@@ -8,6 +8,17 @@
     Paperclip,
     MessageCircleQuestion,
   } from "@lucide/svelte";
+  import * as Select from "$lib/components/ui/select/index.js";
+  const models = [
+    { value: "gemini-2.5-flash-preview-04-17", label: "Gemini 2.5 Flash" },
+    { value: "gemini-2.5-pro-preview-03-25", label: "Gemini 2.5 Pro" },
+    { value: "gemini-2.0-flash", label: "Gemini 2.0 Flash" },
+    { value: "gemini-2.0-flash-lite", label: "Gemini 2.0 Flash Lite" },
+    { value: "gemini-1.5-flash", label: "Gemini 1.5 Flash" },
+    { value: "gemini-1.5-flash-8b", label: "Gemini 1.5 Flash 8B" },
+    { value: "gemini-1.5-pro", label: "Gemini 1.5 Pro" },
+    { value: "gemini-1.0-pro", label: "Gemini 1.0 Pro" },
+  ];
 
   import { PUBLIC_GEMINI_API_KEY } from "$env/static/public";
   import Button from "$lib/components/ui/button/button.svelte";
@@ -25,10 +36,11 @@
   import responseFormatText from "$lib/prompts/response-format.md?raw";
   import immigrationLawText from "$lib/prompts/immigration-law-breakdown.md?raw";
   import AnimatedLoader from "./custom/animatedLoader.svelte";
+  import { fade, fly } from "svelte/transition";
 
   let value = $state("");
-
-  let model = $state("gemini-2.5-pro-preview-03-25");
+  let previousModel = $state("gemini-2.5-pro-preview-03-25");
+  let currentModel = $state("gemini-2.5-pro-preview-03-25");
   //   let model = $state("gemini-2.0-flash");
   let llmState = $state("Thinking...");
   const ai = new GoogleGenAI({ apiKey: PUBLIC_GEMINI_API_KEY });
@@ -57,7 +69,7 @@
       role: "model",
       text: immigrationLawText,
       files: [],
-      model: model,
+      model: previousModel,
     },
     {
       role: "user",
@@ -69,7 +81,7 @@
       role: "model",
       text: "I've reviewed your study permit application and found a few items that need attention:\n\n✅ **Personal information** is complete\n✅ **Educational background** is well documented\n\n❌ **Missing:** Financial proof documents\n❌ **Incomplete:** Letter of acceptance (missing signature)\n\nI recommend attaching your bank statements from the last 6 months and requesting a properly signed letter from your educational institution.",
       files: [],
-      model: model,
+      model: previousModel,
     },
   ]); // Store chat history
   let input = $state(""); // User input
@@ -83,9 +95,6 @@
 
   $effect(() => {
     if (files) {
-      console.log("Selected files", files);
-      //   uploadFile();
-      //   console.log("Added files?", files);
       showWelcomeScreen = false;
     }
   });
@@ -115,7 +124,7 @@
     }
   }
   // List all files uploaded to Google
-  async function listAllFiles() {
+  async function getListFromFilesAPI() {
     let tempArray = [];
     let listResponses = await ai.files.list({ config: { pageSize: 10 } });
     for await (const file of listResponses) {
@@ -124,8 +133,38 @@
     }
     return tempArray;
   }
+
+  function convertToChatHistory(messages) {
+    // Convert your UI messages to the format expected by the API
+    let messageHistory = messages
+      .filter((msg) => msg.role === "user" || msg.role === "model")
+      .map((msg) => {
+        if (msg.role === "user") {
+          // Handle user messages (with or without files)
+          if (msg.files && msg.files.length > 0) {
+            // Create parts for files and text
+            const parts = [];
+            msg.files.forEach((file) => {
+              parts.push({
+                fileData: { fileUri: file.uri, mimeType: file.mimeType },
+              });
+            });
+            parts.push({ text: msg.text });
+            return { role: "user", parts };
+          } else {
+            // Text-only message
+            return { role: "user", parts: [{ text: msg.text }] };
+          }
+        } else {
+          // Model messages are simpler (just text)
+          return { role: "model", parts: [{ text: msg.text }] };
+        }
+      });
+    return messageHistory;
+  }
+
   // Upload file
-  async function uploadFile() {
+  async function uploadToFilesAPI() {
     console.log("Uploading to Google Files API", files);
 
     // Create an array of upload promises
@@ -136,7 +175,7 @@
           file: file,
           config: { mimeType: file.type },
         });
-        console.log("Uploaded file", uploadedFile);
+        // console.log("Uploaded file", uploadedFile);
         return {
           name: file.name,
           uri: uploadedFile.uri,
@@ -168,21 +207,29 @@
     const userText = templatedPrompt || input;
     if (!userText.trim() && !files) return;
     let filesToInclude = files;
+    let uploadedFiles = [];
+    const userMessage = userText;
+    // let displayMessage = userMessage;
     showWelcomeScreen = false;
     loading = true;
-    const userMessage = userText;
     llmState = "Let me think...";
-    let displayMessage = userMessage;
+
     setTimeout(() => scrollToBottom(), 0);
 
     try {
-      if (!chat) {
+      if (!chat || currentModel !== previousModel) {
+        // previousModel = currentModel;
         chat = ai.chats.create({
-          model: model, //"gemini-2.0-flash",
+          model: currentModel, //"gemini-2.0-flash",
           config: {
             systemInstruction: `System Instructions: ${systemInstructions}, Response Format: ${responseFormat}`,
           },
+          history: convertToChatHistory(messages),
         });
+        console.log("Creating new chat", chat);
+        previousModel = currentModel;
+      } else {
+        console.log("Using existing chat", chat);
       }
 
       let messageContent;
@@ -190,12 +237,14 @@
       // If there's a file, use your existing functions
       if (filesToInclude.length > 0) {
         llmState = "Uploading your documents...";
-        const uploadedFile = await uploadFile();
+        uploadedFiles = await uploadToFilesAPI();
         files = [];
-        console.log("Uploaded file", uploadedFile);
+        console.log("Uploaded file", uploadedFiles);
         messageContent = await fullContent(
-          uploadedFile,
-          userMessage || "Please analyze this document"
+          uploadedFiles,
+          userMessage.length > 0
+            ? userMessage
+            : "Please analyze the document(s) attached"
         );
         console.log("Message content", messageContent);
         // displayMessage += `[File: ${files[0].name}]`;
@@ -204,12 +253,13 @@
       }
 
       // Add message to chat history
+      console.log("Files to include", uploadedFiles);
       messages = [
         ...messages,
         {
           role: "user",
-          text: displayMessage,
-          files: filesToInclude,
+          text: userMessage,
+          files: uploadedFiles,
           model: "user",
         },
       ];
@@ -221,16 +271,15 @@
       // Add initial empty message for streaming
       messages = [
         ...messages,
-        { role: "model", text: "", files: [], model: model },
+        { role: "model", text: "", files: [], model: currentModel },
       ];
 
       // Scroll again after model placeholder is added
       setTimeout(() => scrollToBottom(), 0);
 
       console.log("Sending message to Google Chat", messageContent);
-      if (filesToInclude.length > 0) {
-        llmState = "Reading your documents...";
-      }
+      llmState =
+        uploadedFiles.length > 0 ? "Reading documents..." : "Let me think...";
       const stream = await chat.sendMessageStream({
         message: messageContent,
       });
@@ -253,7 +302,7 @@
       //   console.log("HTML", renderMarkdown(fullResponse));
 
       // Clear the file after sending
-      files = [];
+      //   files = [];
     } catch (error) {
       console.error("Error:", error);
 
@@ -267,13 +316,13 @@
           role: "error",
           text: `Failed to get response: ${errorMessage}`,
           files: [],
-          model: model,
+          model: currentModel,
         },
       ];
       setTimeout(() => scrollToBottom(), 0);
     } finally {
       loading = false;
-      llmState = "Thinking deeply...";
+      llmState = "Let me think...";
     }
   }
 
@@ -403,6 +452,40 @@
       </div>
 
       <div class="flex justify-end gap-2">
+        <Select.Root
+          onValueChange={(v) => {
+            // console.log("Selected", v);
+            console.log(
+              "Current Model",
+              currentModel,
+              "Previous Model",
+              previousModel
+            );
+          }}
+          type="single"
+          name="favoriteFruit"
+          bind:value={currentModel}
+        >
+          <Select.Trigger class="max-w-fit border-teal-700">
+            {models.find((m) => m.value === currentModel)?.label}
+          </Select.Trigger>
+          <Select.Content class="z-100 bg-gray-950">
+            <div transition:fade={{ duration: 150 }}>
+              <Select.Group>
+                <Select.GroupHeading class="text-gray-200 font-semibold">
+                  Models
+                </Select.GroupHeading>
+                {#each models as model}
+                  <Select.Item
+                    class="text-gray-200 hover:bg-teal-900"
+                    value={model.value}
+                    label={model.label}>{model.label}</Select.Item
+                  >
+                {/each}
+              </Select.Group>
+            </div>
+          </Select.Content>
+        </Select.Root>
         <Button
           onclick={() => sendMessage()}
           disabled={input.length === 0 || loading}

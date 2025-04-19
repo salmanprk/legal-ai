@@ -1,6 +1,6 @@
 <script>
   import Button from "$lib/components/ui/button/button.svelte";
-  import { Paperclip } from "@lucide/svelte";
+  import { CirclePlus, Paperclip } from "@lucide/svelte";
 
   // Add this function to handle file input click
   let { files = $bindable([]) } = $props(); // Reference to hidden file input
@@ -56,9 +56,9 @@
 <div class="flex flex-col gap-2">
   <Button
     onclick={triggerFileInput}
-    class="btn flex items-center gap-2 bg-orange-700 hover:bg-orange-600"
+    class="w-24 btn flex items-center gap-2 bg-orange-700 hover:bg-orange-600"
   >
-    {"Add files"}
-    <Paperclip class="h-5 w-5" />
+    {"Add"}
+    <CirclePlus class="h-5 w-5" />
   </Button>
 </div>
